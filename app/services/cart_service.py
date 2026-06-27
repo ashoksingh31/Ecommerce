@@ -3,16 +3,23 @@ from app.storage import cart
 
 
 def add_item(product_id, name, price, quantity):
-    item = CartItem(
+
+    # If product already exists, increase quantity
+    for item in cart:
+        if item.product_id == product_id:
+            item.quantity += quantity
+            return item
+
+    new_item = CartItem(
         product_id=product_id,
         name=name,
         price=price,
         quantity=quantity
     )
 
-    cart.append(item)
+    cart.append(new_item)
 
-    return item
+    return new_item
 
 
 def get_cart():
@@ -24,10 +31,4 @@ def clear_cart():
 
 
 def calculate_subtotal():
-
-    total = 0
-
-    for item in cart:
-        total += item.price * item.quantity
-
-    return total
+    return sum(item.price * item.quantity for item in cart)
