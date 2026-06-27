@@ -13,8 +13,8 @@ def setup_function():
     cart.clear()
     orders.clear()
 
-    stats["total_orders"] = 0
-    stats["total_items_sold"] = 0
+    stats.total_orders = 0
+    stats.total_items_sold = 0
     stats["total_revenue"] = 0
     stats["total_discount_given"] = 0
 

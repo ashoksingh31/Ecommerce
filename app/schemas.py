@@ -16,19 +16,25 @@ class CartItemResponse(BaseModel):
     quantity: int
 
 
+class CartResponse(BaseModel):
+    items: List[CartItemResponse]
+    subtotal: float
+
+
 class CheckoutRequest(BaseModel):
     discount_code: Optional[str] = None
 
 
 class CheckoutResponse(BaseModel):
+    message: str
     order_id: int
     subtotal: float
     discount: float
     total: float
+
+
+class DiscountResponse(BaseModel):
     message: str
-
-
-class DiscountCodeResponse(BaseModel):
     code: str
     percentage: int
 

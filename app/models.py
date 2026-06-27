@@ -25,3 +25,14 @@ class Order:
     discount: float
     total: float
     discount_code: Optional[str] = None
+
+
+@dataclass
+class Stats:
+    total_orders: int = 0
+    total_items_sold: int = 0
+    total_revenue: float = 0
+    total_discount_given: float = 0
+    discount_codes_generated: int = 0
+    discount_codes_used: int = 0
+    last_discount_order: int = 0

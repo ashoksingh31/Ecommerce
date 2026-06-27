@@ -1,6 +1,9 @@
 from fastapi import APIRouter
 
-from app.schemas import AddItemRequest
+from app.schemas import (
+    AddItemRequest,
+    CartResponse,
+)
 from app.services.cart_service import (
     add_item,
     get_cart,
@@ -26,7 +29,7 @@ def add_item_to_cart(item: AddItemRequest):
     }
 
 
-@router.get("")
+@router.get("", response_model=CartResponse)
 def view_cart():
 
     return {

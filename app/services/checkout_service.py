@@ -52,9 +52,9 @@ def checkout(discount_code=None):
 
     orders.append(order)
 
-    stats["total_orders"] += 1
+    stats.total_orders += 1
 
-    stats["total_items_sold"] += sum(
+    stats.total_items_sold += sum(
         item.quantity for item in cart
     )
 
