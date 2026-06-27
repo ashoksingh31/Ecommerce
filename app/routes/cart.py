@@ -1,25 +1,35 @@
 from fastapi import APIRouter
+
 from app.schemas import AddItemRequest
-from app.services.cart_service import add_item, get_cart
+from app.services.cart_service import (
+    add_item,
+    get_cart,
+    calculate_subtotal,
+)
 
 router = APIRouter()
 
 
 @router.post("/items")
 def add_item_to_cart(item: AddItemRequest):
-    added_item = add_item(
-        product_id=item.product_id,
-        name=item.name,
-        price=item.price,
-        quantity=item.quantity,
+
+    cart_item = add_item(
+        item.product_id,
+        item.name,
+        item.price,
+        item.quantity,
     )
 
     return {
-        "message": "Item added to cart",
-        "item": added_item
+        "message": "Item added successfully",
+        "item": cart_item
     }
 
 
 @router.get("")
 def view_cart():
-    return get_cart()
+
+    return {
+        "items": get_cart(),
+        "subtotal": calculate_subtotal()
+    }

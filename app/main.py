@@ -10,7 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(cart_router, prefix="/cart", tags=["Cart"])
-app.include_router(checkout_router, tags=["Checkout"])
+app.include_router(checkout_router, prefix="/checkout", tags=["Checkout"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
 
 
