@@ -1,33 +1,40 @@
-from app.services.cart_service import (
-    add_item,
-    calculate_subtotal,
-)
-from app.storage import cart
+from app.tests.helpers import add_keyboard
 
 
-def setup_function():
-    cart.clear()
+# Verify duplicate products are merged and subtotal is updated.
+def test_cart_merge(api_client):
+
+    add_keyboard(api_client, 2)
+    add_keyboard(api_client, 3)
+
+    response = api_client.get("/cart")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data["items"]) == 1
+    assert data["items"][0]["quantity"] == 5
+    assert data["subtotal"] == 5000
 
 
-def test_add_item():
+# Verify cart correctly handles large quantity orders.
+def test_large_order(api_client):
 
-    add_item(
-        1,
-        "Keyboard",
-        1000,
-        2,
+    api_client.post(
+        "/cart/items",
+        json={
+            "product_id": 99,
+            "name": "Monitor",
+            "price": 20000,
+            "quantity": 10,
+        },
     )
 
-    assert len(cart) == 1
+    response = api_client.get("/cart")
 
+    assert response.status_code == 200
 
-def test_subtotal():
+    data = response.json()
 
-    add_item(
-        1,
-        "Keyboard",
-        1000,
-        2,
-    )
-
-    assert calculate_subtotal() == 2000
+    assert data["subtotal"] == 200000

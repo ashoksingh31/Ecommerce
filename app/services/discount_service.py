@@ -24,9 +24,9 @@ def should_generate_discount():
     current_orders = stats.total_orders
 
     return (
-        current_orders != 0
+        current_orders > 0
         and current_orders % ORDER_INTERVAL == 0
-        and stats["last_discount_order"] != current_orders
+        and stats.last_discount_order != current_orders
     )
 
 
@@ -45,7 +45,7 @@ def generate_discount_code():
     discount_codes[code] = coupon
 
     stats.discount_codes_generated += 1
-    stats["last_discount_order"] = stats.total_orders
+    stats.last_discount_order = stats.total_orders
 
     return coupon
 
@@ -72,4 +72,4 @@ def mark_discount_used(code):
 
     if coupon:
         coupon.used = True
-        stats["discount_codes_used"] += 1
+        stats.discount_codes_used += 1
