@@ -1,0 +1,202 @@
+{
+  "info": {
+    "name": "Ecommerce Store API",
+    "description": "Postman collection for the Ecommerce Store API built with FastAPI. Covers cart management, checkout, discount coupons, orders, and admin stats.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Confirms the API is running."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Add Item to Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/cart/items",
+              "host": ["{{base_url}}"],
+              "path": ["cart", "items"]
+            },
+            "description": "Add a product to the cart. If the product already exists, quantity is merged."
+          }
+        },
+        {
+          "name": "Add Another Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 2,\n  \"name\": \"Mouse\",\n  \"price\": 500,\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/cart/items",
+              "host": ["{{base_url}}"],
+              "path": ["cart", "items"]
+            },
+            "description": "Add a second product to the cart."
+          }
+        },
+        {
+          "name": "View Cart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/cart",
+              "host": ["{{base_url}}"],
+              "path": ["cart"]
+            },
+            "description": "Returns all items in the cart and the running subtotal."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "item": [
+        {
+          "name": "Checkout Without Discount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["checkout"]
+            },
+            "description": "Place an order without a discount code."
+          }
+        },
+        {
+          "name": "Checkout With Discount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discount_code\": \"PASTE_CODE_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["checkout"]
+            },
+            "description": "Place an order with a valid discount code. Replace PASTE_CODE_HERE with a generated coupon."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Generate Discount Code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/discount/generate",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "discount", "generate"]
+            },
+            "description": "Generate a discount coupon if the nth order threshold has been reached (every 3rd order)."
+          }
+        },
+        {
+          "name": "Get Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/stats",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "stats"]
+            },
+            "description": "Returns aggregate store statistics — total orders, revenue, discounts given, and coupon usage."
+          }
+        },
+        {
+          "name": "List All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/orders",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "orders"]
+            },
+            "description": "Returns all completed orders with their status and discount details."
+          }
+        },
+        {
+          "name": "List All Discount Codes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}admin/discounts",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "discounts"]
+            },
+            "description": "Returns all generated discount codes and whether they have been used."
+          }
+        }
+      ]
+    }
+  ]
+}
