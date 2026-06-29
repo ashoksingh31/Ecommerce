@@ -20,6 +20,7 @@ def checkout_cart(request: CheckoutRequest):
             subtotal=order.subtotal,
             discount=order.discount,
             total=order.total,
+            status=order.status,
         )
 
     except ValueError as e:

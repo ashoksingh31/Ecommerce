@@ -31,6 +31,7 @@ class CheckoutResponse(BaseModel):
     subtotal: float
     discount: float
     total: float
+    status: str
 
 
 class DiscountResponse(BaseModel):
@@ -46,3 +47,13 @@ class StatsResponse(BaseModel):
     total_discount_given: float
     discount_codes_generated: int
     discount_codes_used: int
+
+
+
+class OrderResponse(BaseModel):
+    order_id: int
+    subtotal: float
+    discount: float
+    total: float
+    status: str
+    discount_code: Optional[str] = None

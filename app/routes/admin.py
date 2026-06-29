@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.schemas import (
     StatsResponse,
     DiscountResponse,
+    OrderResponse,
 )
 
 from app.storage import (
@@ -51,7 +52,7 @@ def get_stats():
     )
 
 
-@router.get("/orders")
+@router.get("/orders", response_model=list[OrderResponse])
 def get_orders():
     return orders
 

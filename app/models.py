@@ -25,6 +25,7 @@ class Order:
     discount: float
     total: float
     discount_code: Optional[str] = None
+    status: str = "confirmed"
 
 
 @dataclass
