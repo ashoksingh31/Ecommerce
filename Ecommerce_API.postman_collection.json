@@ -1,199 +1,361 @@
 {
   "info": {
     "name": "Ecommerce Store API",
-    "description": "Postman collection for the Ecommerce Store API built with FastAPI. Covers cart management, checkout, discount coupons, orders, and admin stats.",
+    "description": "Complete Postman collection for the Ecommerce Store API (FastAPI). Requests are ordered top-to-bottom to run correctly via Collection Runner in a single pass — no manual steps needed. Each step builds on the previous one.\n\n## Setup\n1. Start the server: `uvicorn app.main:app --reload`\n2. Confirm `base_url` points to your local server (default: http://127.0.0.1:8000)\n3. Click Collection → Run, then Run Ecommerce Store API. Do NOT reorder requests — the sequence is intentional.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://127.0.0.1:8000",
-      "type": "string"
-    }
+    { "key": "base_url", "value": "http://127.0.0.1:8000", "type": "string" },
+    { "key": "discount_code", "value": "", "type": "string" },
+    { "key": "used_discount_code", "value": "", "type": "string" }
   ],
   "item": [
     {
-      "name": "Health Check",
+      "name": "01 - Health Check",
       "item": [
         {
           "name": "Root",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Message is API is running', function () { pm.expect(pm.response.json().message).to.eql('API is running'); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/",
-              "host": ["{{base_url}}"],
-              "path": [""]
-            },
+            "method": "GET", "header": [],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] },
             "description": "Confirms the API is running."
           }
         }
       ]
     },
     {
-      "name": "Cart",
+      "name": "02 - Empty Cart Checks",
+      "item": [
+        {
+          "name": "[FAIL] Checkout with Empty Cart",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+            "pm.test('Error is Cart is empty', function () { pm.expect(pm.response.json().detail).to.eql('Cart is empty'); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Runs FIRST, before any items are added. Confirms checkout rejects an empty cart."
+          }
+        },
+        {
+          "name": "[FAIL] Generate Discount Before Threshold",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Code is empty - condition not met', function () { pm.expect(pm.response.json().code).to.eql(''); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [],
+            "url": { "raw": "{{base_url}}/admin/discount/generate", "host": ["{{base_url}}"], "path": ["admin", "discount", "generate"] },
+            "description": "Runs with 0 orders placed so far. Confirms no coupon is generated before the 3-order threshold."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Cart Validation Failures",
+      "item": [
+        {
+          "name": "[FAIL] Add Item with Negative Price",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 422', function () { pm.response.to.have.status(422); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 3,\n  \"name\": \"Broken Item\",\n  \"price\": -100,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Expected: 422. Pydantic rejects price <= 0."
+          }
+        },
+        {
+          "name": "[FAIL] Add Item with Zero Quantity",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 422', function () { pm.response.to.have.status(422); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 4,\n  \"name\": \"Ghost Item\",\n  \"price\": 100,\n  \"quantity\": 0\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Expected: 422. Pydantic rejects quantity <= 0."
+          }
+        },
+        {
+          "name": "[FAIL] Add Item with Missing Field",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 422', function () { pm.response.to.have.status(422); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 5,\n  \"price\": 100,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Expected: 422. 'name' field is required but missing."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Cart Basics",
       "item": [
         {
           "name": "Add Item to Cart",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Quantity is correct', function () { pm.expect(pm.response.json().item.quantity).to.eql(2); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/cart/items",
-              "host": ["{{base_url}}"],
-              "path": ["cart", "items"]
-            },
-            "description": "Add a product to the cart. If the product already exists, quantity is merged."
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 2\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Add a Keyboard to the cart."
           }
         },
         {
           "name": "Add Another Item",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"product_id\": 2,\n  \"name\": \"Mouse\",\n  \"price\": 500,\n  \"quantity\": 1\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/cart/items",
-              "host": ["{{base_url}}"],
-              "path": ["cart", "items"]
-            },
-            "description": "Add a second product to the cart."
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 2,\n  \"name\": \"Mouse\",\n  \"price\": 500,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Add a Mouse to the cart."
           }
         },
         {
           "name": "View Cart",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Cart has 2 items', function () { pm.expect(pm.response.json().items.length).to.eql(2); });",
+            "pm.test('Subtotal is 2500', function () { pm.expect(pm.response.json().subtotal).to.eql(2500); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/cart",
-              "host": ["{{base_url}}"],
-              "path": ["cart"]
-            },
-            "description": "Returns all items in the cart and the running subtotal."
+            "method": "GET", "header": [],
+            "url": { "raw": "{{base_url}}/cart", "host": ["{{base_url}}"], "path": ["cart"] },
+            "description": "Confirms both items are in the cart with correct subtotal."
           }
         }
       ]
     },
     {
-      "name": "Checkout",
+      "name": "05 - Build Up to Discount Threshold (3 Orders)",
       "item": [
         {
-          "name": "Checkout Without Discount",
+          "name": "Checkout Without Discount (Order 1 of 3)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('No discount applied', function () { pm.expect(pm.response.json().discount).to.eql(0); });",
+            "pm.test('Status is confirmed', function () { pm.expect(pm.response.json().status).to.eql('confirmed'); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            },
-            "url": {
-              "raw": "{{base_url}}/checkout",
-              "host": ["{{base_url}}"],
-              "path": ["checkout"]
-            },
-            "description": "Place an order without a discount code."
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Checks out the cart built in step 04. This is order #1 toward the 3-order discount threshold."
+          }
+        },
+        {
+          "name": "Add Item for Order 2",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Cart was cleared after the last checkout — add a fresh item for order 2."
+          }
+        },
+        {
+          "name": "Checkout Without Discount (Order 2 of 3)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Order #2 toward the 3-order discount threshold."
+          }
+        },
+        {
+          "name": "Add Item for Order 3",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Fresh item for order 3."
+          }
+        },
+        {
+          "name": "Checkout Without Discount (Order 3 of 3)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Order #3 — total_orders is now 3, which meets the discount generation threshold."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Discount Generation",
+      "item": [
+        {
+          "name": "Generate Discount Code",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Coupon code is not empty', function () {",
+            "    const json = pm.response.json();",
+            "    pm.expect(json.code).to.not.eql('');",
+            "    pm.expect(json.percentage).to.eql(10);",
+            "});",
+            "pm.collectionVariables.set('discount_code', pm.response.json().code);"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [],
+            "url": { "raw": "{{base_url}}/admin/discount/generate", "host": ["{{base_url}}"], "path": ["admin", "discount", "generate"] },
+            "description": "total_orders is now 3, so a coupon is generated. Saves the code into {{discount_code}} for later use."
+          }
+        },
+        {
+          "name": "[FAIL] Generate Discount Twice at Same Interval",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Second generation returns empty code', function () { pm.expect(pm.response.json().code).to.eql(''); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [],
+            "url": { "raw": "{{base_url}}/admin/discount/generate", "host": ["{{base_url}}"], "path": ["admin", "discount", "generate"] },
+            "description": "Calling generate again immediately at the same order count should not create a duplicate coupon."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Checkout With Discount",
+      "item": [
+        {
+          "name": "Add Item Before Discount Checkout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 5\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Cart was cleared after order 3 — add items before testing the discount checkout."
+          }
+        },
+        {
+          "name": "[FAIL] Checkout with Invalid Discount Code",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+            "pm.test('Error is Invalid discount code', function () { pm.expect(pm.response.json().detail).to.eql('Invalid discount code'); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"discount_code\": \"INVALID123\"\n}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "A fake discount code should be rejected. Cart still has items after this since checkout failed."
           }
         },
         {
           "name": "Checkout With Discount",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Discount was applied', function () { pm.expect(pm.response.json().discount).to.be.above(0); });",
+            "pm.collectionVariables.set('used_discount_code', pm.collectionVariables.get('discount_code'));"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"discount_code\": \"PASTE_CODE_HERE\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/checkout",
-              "host": ["{{base_url}}"],
-              "path": ["checkout"]
-            },
-            "description": "Place an order with a valid discount code. Replace PASTE_CODE_HERE with a generated coupon."
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"discount_code\": \"{{discount_code}}\"\n}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Uses the real coupon saved from step 06. Should succeed with a 10% discount."
+          }
+        },
+        {
+          "name": "Add Item Before Reuse Test",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"name\": \"Keyboard\",\n  \"price\": 1000,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{base_url}}/cart/items", "host": ["{{base_url}}"], "path": ["cart", "items"] },
+            "description": "Cart was cleared after the discounted checkout — add an item before testing coupon reuse."
+          }
+        },
+        {
+          "name": "[FAIL] Checkout with Already-Used Discount Code",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+            "pm.test('Error is Invalid discount code', function () { pm.expect(pm.response.json().detail).to.eql('Invalid discount code'); });"
+          ], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"discount_code\": \"{{used_discount_code}}\"\n}" },
+            "url": { "raw": "{{base_url}}/checkout", "host": ["{{base_url}}"], "path": ["checkout"] },
+            "description": "Reuses the already-redeemed coupon. Should be rejected as invalid."
           }
         }
       ]
     },
     {
-      "name": "Admin",
+      "name": "08 - Admin Reporting",
       "item": [
         {
-          "name": "Generate Discount Code",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/admin/discount/generate",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "discount", "generate"]
-            },
-            "description": "Generate a discount coupon if the nth order threshold has been reached (every 3rd order)."
-          }
-        },
-        {
           "name": "Get Stats",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Stats fields present', function () {",
+            "    const json = pm.response.json();",
+            "    pm.expect(json).to.have.property('total_orders');",
+            "    pm.expect(json).to.have.property('total_revenue');",
+            "    pm.expect(json).to.have.property('discount_codes_used');",
+            "});",
+            "pm.test('discount_codes_used is 1', function () { pm.expect(pm.response.json().discount_codes_used).to.eql(1); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/admin/stats",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "stats"]
-            },
-            "description": "Returns aggregate store statistics — total orders, revenue, discounts given, and coupon usage."
+            "method": "GET", "header": [],
+            "url": { "raw": "{{base_url}}/admin/stats", "host": ["{{base_url}}"], "path": ["admin", "stats"] },
+            "description": "Returns aggregate stats. By this point: 4 orders placed, 1 coupon used."
           }
         },
         {
           "name": "List All Orders",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Orders list is not empty', function () { pm.expect(pm.response.json().length).to.be.above(0); });",
+            "pm.test('Each order has a status field', function () {",
+            "    const orders = pm.response.json();",
+            "    pm.expect(orders[0]).to.have.property('status');",
+            "});"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/admin/orders",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "orders"]
-            },
-            "description": "Returns all completed orders with their status and discount details."
+            "method": "GET", "header": [],
+            "url": { "raw": "{{base_url}}/admin/orders", "host": ["{{base_url}}"], "path": ["admin", "orders"] },
+            "description": "Returns all completed orders."
           }
         },
         {
           "name": "List All Discount Codes",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('At least one discount code exists', function () { pm.expect(pm.response.json().length).to.be.above(0); });"
+          ], "type": "text/javascript" } }],
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}admin/discounts",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "discounts"]
-            },
-            "description": "Returns all generated discount codes and whether they have been used."
+            "method": "GET", "header": [],
+            "url": { "raw": "{{base_url}}/admin/discounts", "host": ["{{base_url}}"], "path": ["admin", "discounts"] },
+            "description": "Returns all generated discount codes. Should show exactly 1, marked as used."
           }
         }
       ]
